@@ -40,6 +40,7 @@ if sel is not None:
 zmeans = []
 bmeans = []
 sbmeans = [[],[]]  # min and max error bar
+mmeans = [8.5,9.25,9.75,10.25,10.75,11.5]
 for v in p.get('data_vectors'):
     print(v['name'])
 
@@ -129,3 +130,8 @@ ax.errorbar(zmeans, 1-np.array(bmeans), yerr=np.flip(sbmeans, 0), fmt='ro')
 ax.set_xlabel('$z$', fontsize=15)
 ax.set_ylabel('$1-b$', fontsize=15)
 fig.savefig(p.get_sampler_prefix('b_hydro')+'all.pdf', bbox_inches='tight')
+fig2, ax2 = plt.subplots()
+ax2.errorbar(mmeans, 1-np.array(bmeans), yerr=np.flip(sbmeans, 0), fmt='ro')
+ax2.set_xlabel(r'$\log_{10}({M_{*}/M_{\odot}})$')
+ax2.set_ylabel('$1-b$', fontsize=15)
+fig2.savefig(p.get_sampler_prefix('b_hydro_stellar_mass')+'all.pdf', bbox_inches='tight')
