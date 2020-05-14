@@ -68,24 +68,24 @@ class Arnaud(object):
         P = K * PM[..., None] * Pz
         return P.squeeze() if squeeze else P
 
-    def form_factor(self, x):
+    def form_factor(self, x, **kwargs):
         """Computes the form factor of the Arnaud profile."""
         # Planck collaboration (2013a) best fit
-        c500 = 1.81
-        alpha = 1.33
-        beta = 4.13
-        gama = 0.31
-
+        c500 = kwargs["c500"] if "c500" in kwargs else 1.81
+        alpha = kwargs["alpha_prof"] if "alpha_prof" in kwargs else 1.33
+        beta = kwargs["beta_prof"] if "beta_prof" in kwargs else 4.13
+        gama = kwargs["gamma_prof"] if "gamma_prof" in kwargs else 0.31
+        #print(c500, alpha, beta, gama)
         f1 = (c500*x)**(-gama)
         f2 = (1+(c500*x)**alpha)**(-(beta-gama)/alpha)
         return f1*f2
 
-    def _integ_interp(self):
+    def _integ_interp(self, **kwargs):
         """Computes the integral of the power spectrum at different points and
         returns an interpolating function connecting these points.
         """
-        def integrand(x):
-            return self.form_factor(x)*x
+        def integrand(x, **kwargs):
+            return self.form_factor(x, **kwargs)*x
 
         # # Integration Boundaries # #
         rmin, rmax = self.rrange  # physical distance [R_Delta]
@@ -101,7 +101,7 @@ class Arnaud(object):
 
         # # Extrapolation # #
         # Backward Extrapolation
-        def F1(x):
+        def F1(x, **kwargs):
             return f_arr[0]*np.ones_like(x)  # constant value
 
         # Forward Extrapolation
@@ -111,10 +111,10 @@ class Arnaud(object):
         A = np.vstack([Q, np.ones(len(Q))]).T
         m, c = lstsq(A, F, rcond=None)[0]
 
-        def F3(x):
+        def F3(x, **kwargs):
             return 10**(m*x+c)  # logarithmic drop
 
-        def F(x):
+        def F(x, **kwargs):
             return np.piecewise(x,
                                 [x < lgqmin,        # backward extrapolation
                                  (lgqmin <= x)*(x <= lgqmax),  # common range
@@ -136,8 +136,8 @@ class Arnaud(object):
         R = R_Delta(cosmo, M, a, self.Delta, squeeze=False) / a
         # transform axes
         R = R[..., None]
-
-        ff = self._fourier_interp(np.log10(k*R))
+        #self._fourier_interp = self._integ_interp(**kwargs)
+        ff = self._integ_interp(**kwargs)(np.log10(k*R))
         nn = self.norm(cosmo, M, a, b)[..., None]
 
         F = 4*np.pi*R**3 * nn * ff
