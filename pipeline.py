@@ -319,6 +319,41 @@ for fy in fields_sz:
         dcov *= (b_hp**2)[:, None]*(b_hp**2*b_y)[None, :]
         dcov_gggy[fy.name][fg.name] = Covariance(fg.name, fg.name,
                                                  fg.name, fy.name, dcov)
+print("  yyyg")
+#covs_yyyg_data = {}
+covs_yyyg_model = {}
+dcov_yyyg = {}
+for fy in fields_sz:
+    covs_yyyg_model[fy.name] = {}
+    #covs_yyyg_data[fy.name] = {}
+    dcov_yyyg[fy.name] = {}
+    clvyym = cls_cov_yy[fy.name]
+    #clvyyd = cls_cov_yy_data[fy.name]
+    for fg in fields_ng:
+        clvgym = cls_cov_gy_model[fy.name][fg.name]
+        #clvgyd = cls_cov_gy_data[fy.name][fg.name]
+        covs_yyyg_model[fy.name][fg.name] = get_covariance(fy, fy, fy, fg,
+                                                           'model',
+                                                           clvyym, clvgym,
+                                                           clvyym, clvgym)
+        #covs_yyyg_data[fy.name][fg.name] = get_covariance(fy, fy, fy, fg,
+        #                                                  'data',
+        #                                                  clvyyd, clvgyd,
+        #                                                  clvyyd, clvgyd)
+        fsky = np.mean(fg.mask*fy.mask)
+        prof_g = HOD(nz_file=fg.dndz)
+        dcov = hm_ang_1h_covariance(cosmo, fsky, cls_yy[fy.name].leff,
+                                    (prof_y, prof_y), (prof_g, prof_y),
+                                    zrange_a=fg.zrange, zpoints_a=64,
+                                    zlog_a=True,
+                                    zrange_b=fg.zrange, zpoints_b=64,
+                                    zlog_b=True,
+                                    selection=sel, **(models[fg.name]))
+        b_hp = beam_hpix(cls_gg[fg.name].leff, nside)
+        b_y = beam_gaussian(cls_gg[fg.name].leff, 10.)
+        dcov *= (b_hp**2)[:, None]*(b_hp**2*b_y)[None, :]
+        dcov_gggy[fy.name][fg.name] = Covariance(fy.name, fy.name,
+                                                 fy.name, fg.name, dcov)
 # gygy
 print("  gygy")
 covs_gygy_data = {}
@@ -382,6 +417,24 @@ for fd in fields_dt:
                                                           'data',
                                                           clvyyd, clvydd,
                                                           clvydd, clvdd)
+
+print("  yyyy")
+covs_yyyy_data = {}
+covs_yyyy_model = {}
+for fy in fields_sz:
+   covs_yyyy_data[fy.name] = {}
+   covs_yyyy_model[fy.name] = {}
+   for fy2 in fields_sz:
+       clvyy = cls_cov_yy[fy.name]
+       clvyy2 = cls_cov_yy[fy2.name]
+       covs_yyyy_data[fy.name][fy2.name] = get_covariance(fy, fy2, fy, fy2,
+                                                          'data',
+                                                          clvyy, clvyy2,
+                                                          clvyy2, clvyy)
+       covs_yyyy_model[fy.name][fy2.name] = get_covariance(fy, fy2, fy, fy2,
+                                                          'model',
+                                                          clvyy, clvyy2,
+                                                          clvyy2, clvyy)
 
 # Save 1-halo covariance
 print("Saving 1-halo covariances...", end="")
