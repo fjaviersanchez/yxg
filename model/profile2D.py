@@ -33,7 +33,7 @@ class Arnaud(object):
         self.Delta = 500             # reference overdensity (Arnaud et al.)
         self.name = name
 
-        self._fourier_interp = self._integ_interp()
+        #self._fourier_interp = self._integ_interp()
 
     def kernel(self, cosmo, a, **kwargs):
         """The thermal Sunyaev-Zel'dovich anisotropy window function."""
@@ -68,24 +68,23 @@ class Arnaud(object):
         P = K * PM[..., None] * Pz
         return P.squeeze() if squeeze else P
 
-    def form_factor(self, x, **kwargs):
+    def form_factor(self, x, c500, alpha, beta, gama):
         """Computes the form factor of the Arnaud profile."""
         # Planck collaboration (2013a) best fit
-        c500 = kwargs["c500"] if "c500" in kwargs else 1.81
-        alpha = kwargs["alpha_prof"] if "alpha_prof" in kwargs else 1.33
-        beta = kwargs["beta_prof"] if "beta_prof" in kwargs else 4.13
-        gama = kwargs["gamma_prof"] if "gamma_prof" in kwargs else 0.31
-        #print(c500, alpha, beta, gama)
+        #c500 = kwargs["c500"] #if "c500" in kwargs else 1.81
+        #alpha = kwargs["alpha_prof"] #if "alpha_prof" in kwargs else 1.33
+        #beta = kwargs["beta_prof"] #if "beta_prof" in kwargs else 4.13
+        #gama = kwargs["gamma_prof"] #if "gamma_prof" in kwargs else 0.31
         f1 = (c500*x)**(-gama)
         f2 = (1+(c500*x)**alpha)**(-(beta-gama)/alpha)
         return f1*f2
 
-    def _integ_interp(self, **kwargs):
+    def _integ_interp(self, c500, alpha, beta, gama):
         """Computes the integral of the power spectrum at different points and
         returns an interpolating function connecting these points.
         """
-        def integrand(x, **kwargs):
-            return self.form_factor(x, **kwargs)*x
+        def integrand(x, c500, alpha, beta, gama):
+            return self.form_factor(x, c500, alpha, beta, gama)*x
 
         # # Integration Boundaries # #
         rmin, rmax = self.rrange  # physical distance [R_Delta]
@@ -94,6 +93,7 @@ class Arnaud(object):
         q_arr = np.logspace(lgqmin, lgqmax, self.qpoints)
         f_arr = np.array([quad(integrand,
                                a=1e-4, b=np.inf,     # limits of integration
+                               args=(c500, alpha, beta, gama),
                                weight="sin", wvar=q  # fourier sine weight
                                )[0] / q for q in q_arr])
 
@@ -129,15 +129,18 @@ class Arnaud(object):
         """
         # Input handling
         M, a, k = np.atleast_1d(M), np.atleast_1d(a), np.atleast_2d(k)
-
         # hydrostatic bias
         b = kwargs["b_hydro"]
+        c500 = kwargs["c500"] if "c500" in kwargs else 1.81
+        alpha = kwargs["alpha_prof"] if "alpha_prof" in kwargs else 1.33
+        beta = kwargs["beta_prof"] if "beta_prof" in kwargs else 4.13
+        gamma = kwargs["gamma_prof"] if "gamma_prof" in kwargs else 0.31
         # R_Delta*(1+z)
         R = R_Delta(cosmo, M, a, self.Delta, squeeze=False) / a
         # transform axes
         R = R[..., None]
         #self._fourier_interp = self._integ_interp(**kwargs)
-        ff = self._integ_interp(**kwargs)(np.log10(k*R))
+        ff = self._integ_interp(c500, alpha, beta, gamma)(np.log10(k*R))
         nn = self.norm(cosmo, M, a, b)[..., None]
 
         F = 4*np.pi*R**3 * nn * ff

@@ -33,11 +33,13 @@ class Field(object):
         self.fname_mask = fname_mask
         self.is_ndens = is_ndens  # True if this is a delta_gal map
         # Read mask
-        self.mask = hp.ud_grade(hp.read_map(fname_mask, verbose=False,
-                                            field=field_mask), nside_out=nside)
+        self.mask = hp.read_map(fname_mask, verbose=False, field=field_mask)
+        if nside!=hp.get_nside(self.mask):
+            self.mask = hp.ud_grade(self.mask, nside_out=nside)
         # Read map
-        self.map0 = hp.ud_grade(hp.read_map(fname_map, verbose=False,
-                                            field=field_map), nside_out=nside)
+        self.map0 = hp.read_map(fname_map, verbose=False, field=field_map)
+        if nside!=hp.get_nside(self.map0):
+            self.map0 = hp.ud_grade(self.map0, nside_out=nside)
         mask_bn = np.ones_like(self.mask)
         mask_bn[self.mask <= 0] = 0  # Binary mask
         self.map0 *= mask_bn  # Remove masked pixels
@@ -67,14 +69,16 @@ class Field(object):
                 if os.path.isfile(sname):
                     if self.temp is None:
                         self.temp = []
-                    t = hp.ud_grade(hp.read_map(sname, verbose=False),
-                                    nside_out=nside)
+                    t = hp.read_map(sname, verbose=False)
+                    if hp.get_nside(t) != nside:
+                        t = hp.ud_grade(t, nside_out=nside)
                     t_mean = np.sum(t * self.mask)/np.sum(self.mask)
                     self.temp.append([mask_bn * (t- t_mean)])
 
         # Generate NmtField
+        lmax = np.min(3*nside-1, 10000)
         self.field = nmt.NmtField(self.mask, [self.map],
-                                  templates=self.temp)
+                                  templates=self.temp, n_iter=0, l_max_sht=lmax, n_iter_mask_purify=0)
 
     def update_field(self, new_mask=1.):
         """
@@ -86,5 +90,6 @@ class Field(object):
         Args:
             new_mask (float or array): new mask.
         """
+        lmax = np.min(3*self.nside-1, 10000)
         self.field = nmt.NmtField(self.mask * new_mask, [self.map],
-                                  templates=self.temp)
+                                  templates=self.temp, n_iter=0, l_max_sht=lmax, n_iter_mask_purify=0)

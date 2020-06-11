@@ -97,13 +97,13 @@ def compute_auto(data, mask, nrnd, min_sep=1., max_sep=100., nbins=10):
     xi, varxi = dd.calculateXi(rr, dr)
     return np.exp(dd.meanlogr), xi
 
-def get_kmeans_labels(data, njk):
-    X = np.zeros((len(data['RA']), 2))
-    X[:,0] = data['RA']
-    X[:,1] = data['DEC']
-    km = kmeans_sample(X, njk, maxiter=100, tol=1e-4)
-    print('KMeans info:', km.converged, np.bincount(km.labels))
-    return km
+#def get_kmeans_labels(data, njk):
+#    X = np.zeros((len(data['RA']), 2))
+#    X[:,0] = data['RA']
+#    X[:,1] = data['DEC']
+#    km = kmeans_sample(X, njk, maxiter=100, tol=1e-4)
+#    print('KMeans info:', km.converged, np.bincount(km.labels))
+#    return km
 
 ymap = hp.read_map(args.y_path)
 mask_y = hp.read_map(args.ymask_path)
@@ -114,7 +114,7 @@ mask_galaxies[data_mask['HPIX']] = data_mask['FRACGOOD']
 mask_galaxies = mask_galaxies*mask_y # Compute the correlations in the overlapping region
 
 print(f'Going to compute {len(args.input_galaxies)} z-bins')
-data_cov = dict()
+#data_cov = dict()
 for i in range(len(args.input_galaxies)):
     print('Bin', i)
     data = fitsio.read(args.input_galaxies[i])
@@ -145,35 +145,35 @@ for i in range(len(args.input_galaxies)):
     data_out[f'w_gy_{i}'] = w
     data_out[f'w_gg_{i}'] = w_auto
     # Compute Jackknife
-    if args.n_jk > 0:
-        _km = get_kmeans_labels(data, args.n_jk)
-        labels = _km.labels
-        X2 = np.zeros((np.count_nonzero(mask_galaxies), 2))
-        _ra, _dec = hp.pix2ang(hp.get_nside(mask_galaxies), np.where(mask_galaxies>0)[0], lonlat=True)
-        X2[:,0] = _ra
-        X2[:,1] = _dec 
-        labels2 = _km.find_nearest(X2)
-        if args.debug:
-            print('Labels', np.unique(labels))
-            print('Labels 2', np.bincount(labels2), np.unique(labels2))
-        for i_jk in range(0,args.n_jk):
-            print(f'JK: {i_jk}, {np.count_nonzero(labels!=i_jk)} galaxies left')
-            mask_galaxies_aux = np.zeros_like(mask_galaxies)
-            jk_reg_px = np.unique(hp.ang2pix(hp.get_nside(mask_galaxies), data['RA'][labels==i_jk], data['DEC'][labels==i_jk], lonlat=True))
-            mask_galaxies_aux[mask_galaxies>0] = mask_galaxies[mask_galaxies>0]
-            mask_galaxies_aux[jk_reg_px] = 0.
-            if args.debug:
-                print('Pixels matching', len(jk_reg_px))
-                hp.mollview(mask_galaxies_aux)
-                hp.mollview(mask_galaxies_aux-mask_galaxies)
-                plt.show()
-            cat_galaxy, cat_y, cat_rnd = setup_tc_catalogs(data[labels!=i_jk], ymap, mask_galaxies_aux, wgt_map, args.make_maps)
-            theta, w = compute_corr(cat_galaxy, cat_y, cat_rnd)
-            _, w_auto = compute_auto(data[labels!=i_jk], mask_galaxies_aux, 10*len(data['RA'][labels!=i_jk]))
-            data_cov[f'w_gy_{i}_{i_jk}'] = w
-            data_cov[f'w_gg_{i}_{i_jk}'] = w_auto
+    #if args.n_jk > 0:
+    #    _km = get_kmeans_labels(data, args.n_jk)
+    #    labels = _km.labels
+    #    X2 = np.zeros((np.count_nonzero(mask_galaxies), 2))
+    #    _ra, _dec = hp.pix2ang(hp.get_nside(mask_galaxies), np.where(mask_galaxies>0)[0], lonlat=True)
+    #    X2[:,0] = _ra
+    #    X2[:,1] = _dec 
+    #    labels2 = _km.find_nearest(X2)
+    #    if args.debug:
+    #        print('Labels', np.unique(labels))
+    #        print('Labels 2', np.bincount(labels2), np.unique(labels2))
+    #    for i_jk in range(0,args.n_jk):
+    #        print(f'JK: {i_jk}, {np.count_nonzero(labels!=i_jk)} galaxies left')
+    #        mask_galaxies_aux = np.zeros_like(mask_galaxies)
+    #        jk_reg_px = np.unique(hp.ang2pix(hp.get_nside(mask_galaxies), data['RA'][labels==i_jk], data['DEC'][labels==i_jk], lonlat=True))
+    #        mask_galaxies_aux[mask_galaxies>0] = mask_galaxies[mask_galaxies>0]
+    #        mask_galaxies_aux[jk_reg_px] = 0.
+    #        if args.debug:
+    #            print('Pixels matching', len(jk_reg_px))
+    #            hp.mollview(mask_galaxies_aux)
+    #            hp.mollview(mask_galaxies_aux-mask_galaxies)
+    #            plt.show()
+    #        cat_galaxy, cat_y, cat_rnd = setup_tc_catalogs(data[labels!=i_jk], ymap, mask_galaxies_aux, wgt_map, args.make_maps)
+    #        theta, w = compute_corr(cat_galaxy, cat_y, cat_rnd)
+    #        _, w_auto = compute_auto(data[labels!=i_jk], mask_galaxies_aux, 10*len(data['RA'][labels!=i_jk]))
+    #        data_cov[f'w_gy_{i}_{i_jk}'] = w
+    #        data_cov[f'w_gg_{i}_{i_jk}'] = w_auto
 tab = astropy.table.Table(data_out)
 tab.write(args.out_path, overwrite=True)
-data_cov['theta'] = theta
-tab2 = astropy.table.Table(data_cov)
-tab2.write(args.out_path.replace('.fits', '_cov.fits'), overwrite=True) 
+#data_cov['theta'] = theta
+#tab2 = astropy.table.Table(data_cov)
+#tab2.write(args.out_path.replace('.fits', '_cov.fits'), overwrite=True) 

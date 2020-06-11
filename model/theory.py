@@ -24,7 +24,7 @@ def get_theory(p, dm, cosmo, return_separated=False,
     """
     nz_default = p.get('mcmc')['nz_points_g']
     use_zlog = p.get('mcmc')['z_log_sampling']
-    print(**kwargs)
+    #print(**kwargs)
     cls_out = []
     for tr, ls, bms in zip(dm.tracers, dm.ells, dm.beams):
         profiles = (tr[0].profile, tr[1].profile)
