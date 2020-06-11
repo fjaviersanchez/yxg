@@ -39,7 +39,7 @@ class Arnaud(object):
         """The thermal Sunyaev-Zel'dovich anisotropy window function."""
         prefac = 4.017100792437957e-06
         # avoid recomputing every time
-        # Units of eV * Mpc / cm^3 
+        # Units of eV * Mpc / cm^3
         return prefac*a
 
     def profnorm(self, cosmo, a, squeeze=True, **kwargs):
@@ -136,7 +136,7 @@ class Arnaud(object):
         beta = kwargs["beta_prof"] if "beta_prof" in kwargs else 4.13
         gamma = kwargs["gamma_prof"] if "gamma_prof" in kwargs else 0.31
         # R_Delta*(1+z)
-        R = R_Delta(cosmo, M, a, self.Delta, squeeze=False) / a
+        R = R_Delta(cosmo, M*(1-b), a, self.Delta, squeeze=False) / a
         # transform axes
         R = R[..., None]
         #self._fourier_interp = self._integ_interp(**kwargs)

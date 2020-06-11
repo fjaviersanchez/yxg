@@ -2,6 +2,7 @@ import numpy as np
 from scipy.integrate import simps
 from scipy.interpolate import interp2d
 import pyccl as ccl
+from pyccl import CCLError
 
 
 class HalomodCorrection(object):
@@ -163,6 +164,7 @@ def hm_power_spectrum(cosmo, k, a, profiles,
         select = np.array([selection(M,1./aa-1) for aa in a])
         mfunc *= select
     bh = np.array([ccl.halo_bias(cosmo, M, A1, A2) for A1, A2 in zip(a, Dm)])
+
     # shape transformations
     mfunc, bh = mfunc.T[..., None], bh.T[..., None]
     if selection is not None:
