@@ -76,9 +76,8 @@ class Field(object):
                     self.temp.append([mask_bn * (t- t_mean)])
 
         # Generate NmtField
-        lmax = np.min(3*nside-1, 10000)
         self.field = nmt.NmtField(self.mask, [self.map],
-                                  templates=self.temp, n_iter=0, l_max_sht=lmax, n_iter_mask_purify=0)
+                                  templates=self.temp, n_iter=0, n_iter_mask_purify=0)
 
     def update_field(self, new_mask=1.):
         """
@@ -90,6 +89,5 @@ class Field(object):
         Args:
             new_mask (float or array): new mask.
         """
-        lmax = np.min(3*self.nside-1, 10000)
         self.field = nmt.NmtField(self.mask * new_mask, [self.map],
-                                  templates=self.temp, n_iter=0, l_max_sht=lmax, n_iter_mask_purify=0)
+                                  templates=self.temp, n_iter=0, n_iter_mask_purify=0)

@@ -73,7 +73,7 @@ fields_ng = []
 fields_sz = []
 fields_dt = []
 for d in tqdm(p.get('maps'), desc="Reading fields"):
-#    print(" " + d['name'])
+    print(" " + d['name'])
     f = Field(nside, d['name'], d['mask'], p.get('masks')[d['mask']],
               d['map'], d.get('dndz'), is_ndens=d['type'] == 'g',
               syst_list = d.get('systematics'))
@@ -91,6 +91,7 @@ def get_mcm(f1, f2, jk_region=None):
     mcm = nmt.NmtWorkspace()
     try:
         mcm.read_from(fname)
+        print(" Read MCM from:", fname)
     except:
 #        print("  Computing MCM")
         mcm.compute_coupling_matrix(f1.field, f2.field, bpw.bn)
@@ -98,12 +99,12 @@ def get_mcm(f1, f2, jk_region=None):
     return mcm
 
 def get_power_spectrum(f1, f2, jk_region=None, save_windows=True):
-#    print(" " + f1.name + "," + f2.name)
+    print(" " + f1.name + "," + f2.name)
     try:
         fname = p.get_fname_cls(f1, f2, jk_region=jk_region)
         cls = Spectrum.from_file(fname, f1.name, f2.name)
     except:
-#        print("  Computing Cl")
+        print("  Computing Cl")
         wsp = get_mcm(f1, f2, jk_region=jk_region)
         cls = Spectrum.from_fields(f1, f2, bpw, wsp=wsp,
                                    save_windows=save_windows)
@@ -144,7 +145,7 @@ for fd in fields_dt:
 print("OK")
 
 # Generate model power spectra to compute the Gaussian covariance matrix
-#print("Generating theory power spectra")
+print("Generating theory power spectra")
 def interpolate_spectra(leff, cell, ns):
     # Create a power spectrum interpolated at all ells
     larr = np.arange(3*ns)
@@ -162,7 +163,7 @@ cls_cov_gg_model = {}
 cls_cov_gy_model = {f.name: {} for f in fields_sz}
 prof_y = Arnaud()
 for fg in tqdm(fields_ng, desc="Generating theory power spectra"):
-#    print(" " + fg.name)
+    print(" " + fg.name)
     # Interpolate data
     larr = cls_gg[fg.name].leff
     clarr_gy = {fy.name: cls_gy[fy.name][fg.name].cell
@@ -185,7 +186,7 @@ for fg in tqdm(fields_ng, desc="Generating theory power spectra"):
     except:
         prof_g = HOD(nz_file=fg.dndz)
         bmh2 = beam_hpix(larr, nside)**2
-        bmy = beam_gaussian(larr, 10.)
+        bmy = beam_gaussian(larr, 1.25)
         clgg = hm_ang_power_spectrum(cosmo, larr, (prof_g, prof_g),
                                      zrange=fg.zrange, zpoints=64, zlog=True,
                                      hm_correction=hm_correction, selection=sel,
@@ -281,6 +282,8 @@ for fg in fields_ng:
                                 zrange_a=fg.zrange, zpoints_a=64, zlog_a=True,
                                 zrange_b=fg.zrange, zpoints_b=64, zlog_b=True,
                                 selection=sel, **(models[fg.name]))
+    b_hp = beam_hpix(cls_gg[fg.name].leff, nside)
+    dcov *= (b_hp**2)[:, None] * (b_hp**2)[None, :]
     dcov_gggg[fg.name] = Covariance(fg.name, fg.name, fg.name, fg.name, dcov)
 
 # gggy
@@ -315,7 +318,7 @@ for fy in fields_sz:
                                     zlog_b=True,
                                     selection=sel, **(models[fg.name]))
         b_hp = beam_hpix(cls_gg[fg.name].leff, nside)
-        b_y = beam_gaussian(cls_gg[fg.name].leff, 10.)
+        b_y = beam_gaussian(cls_gg[fg.name].leff, 1.25)
         dcov *= (b_hp**2)[:, None]*(b_hp**2*b_y)[None, :]
         dcov_gggy[fy.name][fg.name] = Covariance(fg.name, fg.name,
                                                  fg.name, fy.name, dcov)
@@ -350,7 +353,7 @@ for fy in fields_sz:
                                     zlog_b=True,
                                     selection=sel, **(models[fg.name]))
         b_hp = beam_hpix(cls_gg[fg.name].leff, nside)
-        b_y = beam_gaussian(cls_gg[fg.name].leff, 10.)
+        b_y = beam_gaussian(cls_gg[fg.name].leff, 1.25)
         dcov *= (b_hp**2)[:, None]*(b_hp**2*b_y)[None, :]
         dcov_gggy[fy.name][fg.name] = Covariance(fy.name, fy.name,
                                                  fy.name, fg.name, dcov)
@@ -387,7 +390,7 @@ for fy in fields_sz:
                                     zlog_b=True,
                                     selection=sel, **(models[fg.name]))
         b_hp = beam_hpix(cls_gg[fg.name].leff, nside)
-        b_y = beam_gaussian(cls_gg[fg.name].leff, 10.)
+        b_y = beam_gaussian(cls_gg[fg.name].leff, 1.25)
         dcov *= (b_hp**2*b_y)[:, None]*(b_hp**2*b_y)[None, :]
         dcov_gygy[fy.name][fg.name] = Covariance(fg.name, fy.name,
                                                  fg.name, fy.name, dcov)
@@ -457,41 +460,36 @@ if p.do_jk():
         def chck_doit(f1, f2):
             fname = p.get_fname_cls(f1, f2, jk_region=jk_id)
             if not os.path.isfile(fname):
-                print("Didn't find %s, computing")
+                print(f"Didn't find {fname}, computing")
                 return True
             else:
                 return False
 
-        for fg in fields_ng:
+        #for fg in fields_ng:
             # gg
-            doit = chck_doit(fg, fg)
-            for fd in fields_dt:
+        #    doit = chck_doit(fg, fg)
+        #    for fd in fields_dt:
                 # dg
-                doit = chck_doit(fg, fd)
-            for fy in fields_sz:
+        #        doit = chck_doit(fg, fd)
+        #    for fy in fields_sz:
                 # gy
-                doit = chck_doit(fy, fg)
-        for fy in fields_sz:
+        #        doit = chck_doit(fy, fg)
+        #for fy in fields_sz:
             # yy
-            doit = chck_doit(fy, fy)
-            for fd in fields_dt:
+        #    doit = chck_doit(fy, fy)
+        #    for fd in fields_dt:
                 # dy
-                doit = chck_doit(fy, fd)
-        for fd in fields_dt:
+        #        doit = chck_doit(fy, fd)
+        #for fd in fields_dt:
             # dd
-            doit = chck_doit(fd, fd)
+        #    doit = chck_doit(fd, fd)
 
-        if not doit:
-            continue
-        #if os.path.isfile(p.get_fname_cls(fields_sz[-1],
-        #                                  fields_sz[-1],
-        #                                  jk_region=jk_id)):
-        #    print("Found %d" % (jk_id + 1))
-        #    print(p.get_fname_cls(fields_sz[-1],
-        #                          fields_sz[-1],
-        #                          jk_region=jk_id))
+        #if not doit:
+        #    print('Found file, skipping')
         #    continue
+
         msk = jk.get_jk_mask(jk_id)
+        #print('Got mask')
         # Update field
         for fg in fields_ng:
 #            print(" " + fg.name)
@@ -506,25 +504,37 @@ if p.do_jk():
         # Compute spectra
         # gg
         for fg in fields_ng:
-            get_power_spectrum(fg, fg, jk_region=jk_id, save_windows=False)
+            doit = chck_doit(fg, fg)
+            if doit: 
+                get_power_spectrum(fg, fg, jk_region=jk_id, save_windows=False)
         # gy
         for fy in fields_sz:
             for fg in fields_ng:
-                get_power_spectrum(fy, fg, jk_region=jk_id, save_windows=False)
+                doit = chck_doit(fy, fg)
+                if doit:
+                    get_power_spectrum(fy, fg, jk_region=jk_id, save_windows=False)
         # yy
         for fy in fields_sz:
-            get_power_spectrum(fy, fy, jk_region=jk_id, save_windows=False)
+            doit = chck_doit(fy, fy)
+            if doit:
+                get_power_spectrum(fy, fy, jk_region=jk_id, save_windows=False)
         # dy
         for fy in fields_sz:
             for fd in fields_dt:
-                get_power_spectrum(fy, fd, jk_region=jk_id, save_windows=False)
+                doit = chck_doit(fy, fd)
+                if doit:
+                    get_power_spectrum(fy, fd, jk_region=jk_id, save_windows=False)
         # dg
         for fg in fields_ng:
             for fd in fields_dt:
-                get_power_spectrum(fg, fd, jk_region=jk_id, save_windows=False)
+                doit = chck_doit(fg, fd)
+                if doit:
+                    get_power_spectrum(fg, fd, jk_region=jk_id, save_windows=False)
         # dd
         for fd in fields_dt:
-            get_power_spectrum(fd, fd, jk_region=jk_id, save_windows=False)
+            doit = chck_doit(fd, fd)
+            if doit:
+                get_power_spectrum(fd, fd, jk_region=jk_id, save_windows=False)
 
         # Cleanup MCMs
         if not p.get('jk')['store_mcm']:

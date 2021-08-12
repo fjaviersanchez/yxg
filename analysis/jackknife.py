@@ -38,6 +38,7 @@ class JackKnife(object):
         self.jk_pixels = np.array(jk_pixels)
         # Total number of JK regions.
         self.npatches = len(self.jk_pixels)
+        print('Number of JK regions', self.npatches)
 
     def get_jk_mask(self, jk_id):
         """

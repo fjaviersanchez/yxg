@@ -17,8 +17,8 @@ class HalomodCorrection(object):
         nz (int): number of samples in redshift to use.
     """
     def __init__(self, cosmo,
-                 k_range=[1E-1, 5], nlk=20,
-                 z_range=[0., 1.], nz=16):
+                 k_range=[1E-1, 5], nlk=128,
+                 z_range=[0.0, 1.5], nz=32):
         lkarr = np.linspace(np.log10(k_range[0]),
                             np.log10(k_range[1]),
                             nlk)

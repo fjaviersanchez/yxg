@@ -25,10 +25,10 @@ class ParamRun(object):
         Get default cosmology
         """
         mfunc = self.get_massfunc()
-        return ccl.Cosmology(Omega_c=0.26066676,
+        return ccl.Cosmology(Omega_c= 0.26066676, #0.25103,#0.26066676,
                              Omega_b=0.048974682,
                              h=0.6766,
-                             sigma8=0.8102,
+                             sigma8= 0.8102, #0.758,#0.8102,
                              n_s=0.9665,
                              mass_function=mfunc)
 

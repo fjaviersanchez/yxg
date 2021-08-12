@@ -2,7 +2,7 @@ import numpy as np
 import os
 import sys
 import warnings
-
+import emcee
 
 class DumPool(object):
     def __init__(self):
@@ -299,7 +299,7 @@ class Sampler(object):
                                             pool=pool)
             if nsteps_use > 0:
                 sampler.run_mcmc(pos, nsteps_use, store=True,
-                                 progress=(verbosity > 0))
+                                 progress=True)
 
         return sampler
 
@@ -309,12 +309,13 @@ class Sampler(object):
         attribute. The log-posterior for each sample can be retrieved through
         the `probs` attribute.
         """
-        self.chain = np.loadtxt(self.prefix_out + "chain.txt")
-        self.probs = np.loadtxt(self.prefix_out + "chainprob.txt")
+        #self.chain = np.loadtxt(self.prefix_out + "chain.txt")
+        #self.probs = np.loadtxt(self.prefix_out + "chainprob.txt")
         #exit(1)
-        #reader = emcee.backends.HDFBackend(fname_chain, read_only=True)
-        #self.chain = reader.get_chain(flat=True)
-        #self.probs = reader.get_log_prob(flat=True)
+        fname_chain = self.prefix_out+'chain.h5'
+        reader = emcee.backends.HDFBackend(fname_chain, read_only=True)
+        self.chain = reader.get_chain(flat=True)
+        self.probs = reader.get_log_prob(flat=True)
 
     def save_properties(self):
         """

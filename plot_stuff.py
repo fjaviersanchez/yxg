@@ -94,10 +94,20 @@ for v in p.get('data_vectors'):
     bgmin, bg, bgmax = np.percentile(bgchain, [16, 50, 84])
     bymin, by, bymax = np.percentile(bychain, [16, 50, 84])
 
+
+    # Get effective number of degrees of freedom
+    corr_mat = np.corrcoef(sam.chain, rowvar=False)
+    _eigv, _eigvec = np.linalg.eig(corr_mat)
+    _eigv[ _eigv > 1.0 ] = 1.
+    _eigv[ _eigv < 0.0 ] = 0.
+    #
+    Ntot = len(_eigv)
+    Neff = Ntot - np.sum( _eigv )
+    print('Effective ndof:', Neff)
     # Plot power spectra
     figs_cl = lik.plot_data(sam.p0, d, save_figures=True, save_data=True,
                             prefix=p.get_sampler_prefix(v['name']),
-                            get_theory_1h=th1h, get_theory_2h=th2h)
+                            get_theory_1h=th1h, get_theory_2h=th2h, ext_dof=Neff)
 
     # Plot likelihood
     figs_ch = lik.plot_chain(sam.chain, save_figure=True,
@@ -123,15 +133,17 @@ for v in p.get('data_vectors'):
     print(" n_data = %d" % (len(d.data_vector)))
     print(" b_g = %.3lE +/- (%.3lE %.3lE) " % (bg, bg-bgmin, bgmax-bg))
     print(" b_y = %.3lE +/- (%.3lE %.3lE) " % (by, by-bymin, bymax-by))
-
-
-fig, ax = plt.subplots()
-ax.errorbar(zmeans, 1-np.array(bmeans), yerr=np.flip(sbmeans, 0), fmt='ro')
-ax.set_xlabel('$z$', fontsize=15)
-ax.set_ylabel('$1-b$', fontsize=15)
-fig.savefig(p.get_sampler_prefix('b_hydro')+'all.pdf', bbox_inches='tight')
-fig2, ax2 = plt.subplots()
-ax2.errorbar(mmeans, 1-np.array(bmeans), yerr=np.flip(sbmeans, 0), fmt='ro')
-ax2.set_xlabel(r'$\log_{10}({M_{*}/M_{\odot}})$')
-ax2.set_ylabel('$1-b$', fontsize=15)
-fig2.savefig(p.get_sampler_prefix('b_hydro_stellar_mass')+'all.pdf', bbox_inches='tight')
+    print(" b_H = %.3lE +/- (%.3lE %.3lE) " % (vv, vv-errmin, vv-errmax))
+#zz = np.linspace(0.75*zmeans[0], 1.25*zmeans[-1])
+#chiang_b = 1.33*(1+zz)**0.15
+#fig, ax = plt.subplots(1, 1)
+#ax.errorbar(zmeans, 1-np.array(bmeans), yerr=np.flip(sbmeans, 0), fmt='ro')
+#ax.plot(zz, 1/chiang_b, label='Chiang et al. 2020')
+#ax.set_xlabel('$z$', fontsize=15)
+#ax.set_ylabel('$1-b$', fontsize=15)
+#fig.savefig(p.get_sampler_prefix('b_hydro')+'all.pdf', bbox_inches='tight')
+#fig2, ax2 = plt.subplots()
+#ax2.errorbar(mmeans, 1-np.array(bmeans), yerr=np.flip(sbmeans, 0), fmt='ro')
+#ax2.set_xlabel(r'$\log_{10}({M_{*}/M_{\odot}})$')
+#ax2.set_ylabel('$1-b$', fontsize=15)
+#fig2.savefig(p.get_sampler_prefix('b_hydro_stellar_mass')+'all.pdf', bbox_inches='tight')

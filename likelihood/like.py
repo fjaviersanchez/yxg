@@ -105,8 +105,9 @@ class Likelihood(object):
         """
         params = self.build_kwargs(par)
         tv = self.get_theory(params)
-        if tv is None:  # Theory calculation failed
+        if (tv is None) or (np.count_nonzero(np.fabs(tv) > 1e2)>0) or (np.count_nonzero(np.isnan(tv)) > 0):  # Theory calculation failed
             return -np.inf
+        #print(tv, self.dv)
         dx = self.dv-tv
         return -0.5 * np.einsum('i,ij,j', dx, self.ic, dx)
 
@@ -166,7 +167,7 @@ class Likelihood(object):
 
     def plot_data(self, par, dvec, save_figures=False, save_data=False,
                   prefix=None, get_theory_1h=None, get_theory_2h=None,
-                  extension='pdf'):
+                  extension='pdf', ext_dof=None):
         """
         Produces a plot of the different data power spectra with
         error bars and the theory prediction corresponding to a set
@@ -188,6 +189,8 @@ class Likelihood(object):
             get_theory_2h (function): function returning the 2-halo
                 contribution.
             extension (str): plot extension (pdf, jpg etc.).
+            ext_dof (float): externally calculated ndof. If None use
+                the number of parameters
 
         Returns:
             array of figure objects.
@@ -237,8 +240,14 @@ class Likelihood(object):
         ev = unwrap(np.sqrt(np.diag(self.cv)), indices)
         # Compute chi^2
         chi2 = self.chi2(par)
-        dof = len(self.dv)
-
+        #dof = len(self.dv)
+        if ext_dof is None:
+            dof = len(par)
+        else:
+            dof = ext_dof
+        print('Number of free parameters', dof)
+        dof = len(self.dv) - dof 
+        print('Number of degrees of freedom', dof)
         # Loop through each correlation and produce a figure
         figs = []
         ax = []
@@ -272,6 +281,13 @@ class Likelihood(object):
             ax2.set_xlabel('$\\ell$', fontsize=15)
             ax2.set_ylabel('$\\Delta_\\ell$', fontsize=15)
             ax2.set_xscale('log')
+            dx = dd - tt
+            chi2_par = np.einsum('i,ij,j', dx, self.ic[ic*len(ll):(ic+1)*len(ll),
+                                 ic*len(ll):(ic+1)*len(ll)], dx)
+            print(chi2_par, t.type)
+            #ax2.text(0.7, 0.85,
+            #       '$\\chi^2/{\\rm dof} = %.2lf / %d$' % (chi2_par, dof/2-1),
+            #       transform=ax2.transAxes)
             ax.append(ax1)
             ax.append(ax2)
             figs.append(fig)
@@ -296,7 +312,7 @@ class Likelihood(object):
 
         # Print the chi^2 value in the first plot
         ax[0].text(0.7, 0.85,
-                   '$\\chi^2/{\\rm dof} = %.2lf / %d$' % (chi2, dof),
+                   '$\\chi^2/{\\rm dof} = %.2lf /  %d$' % (chi2, dof),
                    transform=ax[0].transAxes)
 
         if save_figures:

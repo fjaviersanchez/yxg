@@ -60,7 +60,7 @@ class Arnaud(object):
         h70 = cosmo["h"]/0.7
         P0 = 6.41  # reference pressure
 
-        K = 1.65*h70**2*P0 * (h70/3e14)**(2/3+aP)  # prefactor
+        K = 1.65*h70*P0 * (h70/3e14)**(2/3+aP)  # prefactor
 
         PM = (M*(1-b))**(2/3+aP)             # mass dependence
         Pz = ccl.h_over_h0(cosmo, a)**(8/3)  # scale factor (z) dependence
@@ -209,7 +209,8 @@ class HOD(object):
 
         z = 1/a - 1
         w = kwargs["width"]
-        nz_new = self.nzf(self.z_avg+(1/w)*(self.z-self.z_avg))
+        dz = kwargs["z_shift"] if 'z_shift' in kwargs.keys() else 0
+        nz_new = 1/w*self.nzf(self.z_avg+(1/w)*(self.z-self.z_avg-dz))
         nz_new /= simps(nz_new, x=self.z)
         nzf_new = interp1d(self.z, nz_new, kind="cubic",
                            bounds_error=False, fill_value=0)

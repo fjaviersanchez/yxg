@@ -50,11 +50,11 @@ if sel is not None:
         sel = selection_planck_tophat
     elif sel == 'none':
         sel = None
-
+#print('Im here')
 par = []
 for v in p.get('data_vectors'):
-    if (v['name'] != o.data_name) and (o.data_name != 'all'):
-        continue
+    #if (v['name'] != o.data_name) and (o.data_name != 'all'):
+    #    continue
 
     print(v['name'])
 
@@ -94,8 +94,7 @@ for v in p.get('data_vectors'):
     if sam.nsteps > 0:
         # Monte-carlo
         print(" Sampling:")
-        sam.sample(carry_on=p.get('mcmc')['continue_mcmc'], verbosity=1,
-                   use_mpi=o.use_mpi)
+        sam.sample_old(carry_on=p.get('mcmc')['continue_mcmc'], verbosity=0)
 
 if len(par) > 0:
     is_jk = str(jk_region) if bool(jk_region) else ""
