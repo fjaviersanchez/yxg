@@ -3,7 +3,7 @@ import os
 import pyccl as ccl
 from .profile2D import Arnaud, HOD
 from .utils import beam_gaussian, beam_hpix
-
+from scipy.interpolate import interp1d
 
 def get_profile(m):
     """
@@ -23,6 +23,12 @@ def get_profile(m):
         return HOD(name=m['name'], nz_file=m['dndz'],
                    ns_independent=m.get('ns_independent'))
 
+def trough(trough_file, ells_out):
+    data = np.loadtxt(trough_file)
+    ells = data[:, 0]
+    c_ells = np.sqrt(data[:, 1])
+    sp = interp1d(ells, c_ells, bounds_error=False, fill_value='extrapolate')
+    return sp(ells_out)
 
 class Tracer(object):
     """
@@ -39,6 +45,10 @@ class Tracer(object):
         self.name = m['name']
         self.type = m['type']
         self.beam = m['beam']
+        if 'trough' in m.keys():
+            self.trough = m['trough']
+        else:
+            self.trough = None
         self.dndz = m.get('dndz')
         # Estimate z-range and ell-max
         if self.dndz is not None:
@@ -69,6 +79,8 @@ class Tracer(object):
         # b0 = np.ones_like(ls)
         if self.beam:
             b0 *= beam_gaussian(ls, self.beam)
+        if self.trough is not None:
+            b0 *= trough(self.trough, ls)
         return b0
 
 
@@ -225,3 +237,4 @@ class DataManager(object):
                     self.covar[nd1:nd1+nd1_here][:, nd2:nd2+nd2_here] = cov
                 nd2 += nd2_here
             nd1 += nd1_here
+

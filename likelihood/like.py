@@ -33,7 +33,7 @@ class Likelihood(object):
             self.ic = ic - iccor
             self.t_bf = sigma2 * template[:, None] * ict[None, :]
         else:
-            self.ic = np.linalg.inv(covar)
+            self.ic = np.linalg.inv(covar)*(75.-23-2)/(75.-1)
             self.t_bf = None
         self.cv = covar
         try:
@@ -291,7 +291,8 @@ class Likelihood(object):
             ax.append(ax1)
             ax.append(ax2)
             figs.append(fig)
-
+            fname_out = prefix+'cls_pred'+tr[0].name+'_'+tr[1].name+'.'+extension
+            np.savez(fname_out, ls=ll, cls_tot=tt, cls_1h=tv1h, cls_2h=tv2h)
 #            if save_data:
 #                if prefix is None:
 #                    raise ValueError("Need a file prefix to save stuff")

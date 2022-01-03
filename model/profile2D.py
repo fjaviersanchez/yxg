@@ -6,11 +6,11 @@ from scipy.integrate import quad
 from scipy.integrate import simps
 from scipy.interpolate import interp1d
 import pyccl as ccl
+
 try:  # deal with relative import from other scripts
     from .utils import R_Delta, concentration_duffy
 except ImportError:
     from utils import R_Delta, concentration_duffy
-
 
 class Arnaud(object):
     """
@@ -89,7 +89,6 @@ class Arnaud(object):
         # # Integration Boundaries # #
         rmin, rmax = self.rrange  # physical distance [R_Delta]
         lgqmin, lgqmax = np.log10(1/rmax), np.log10(1/rmin)  # log10 bounds
-
         q_arr = np.logspace(lgqmin, lgqmax, self.qpoints)
         f_arr = np.array([quad(integrand,
                                a=1e-4, b=np.inf,     # limits of integration
@@ -122,6 +121,18 @@ class Arnaud(object):
                                 [F1, F2, F3])
         return F
 
+    def _integ_interp2d(self, c500, alpha, beta, gamma, x):
+        if (np.isscalar(c500)) & (np.isscalar(gamma)):
+            return self._integ_interp(c500, alpha, beta, gamma)(x)
+        else:
+            if (c500.shape != gamma.shape) & (c500.shape != x.shape[0]):
+                return ValueError('c500 should have the same shape as gamma and x[0]')
+            else:
+                out = np.zeros((c500.shape[0], x.shape[1], x.shape[2]))
+                for i in range(len(c500)):
+                    out[i] = self._integ_interp(c500[i], alpha, beta, gamma[i])(x[i])
+                return out
+
     def fourier_profiles(self, cosmo, k, M, a, squeeze=True, **kwargs):
         """Computes the Fourier transform of the Arnaud profile.
 
@@ -135,12 +146,180 @@ class Arnaud(object):
         alpha = kwargs["alpha_prof"] if "alpha_prof" in kwargs else 1.33
         beta = kwargs["beta_prof"] if "beta_prof" in kwargs else 4.13
         gamma = kwargs["gamma_prof"] if "gamma_prof" in kwargs else 0.31
+        epsilon_prof = kwargs["epsilon_prof"] if "epsilon_prof" in kwargs else 0
+        delta_prof = kwargs["delta_prof"] if "delta_prof" in kwargs else 0
+        #c500 = c500*(M/1e14)**delta_prof
+        #gamma = gamma*(M/1e14)**epsilon_prof
         # R_Delta*(1+z)
         R = R_Delta(cosmo, M*(1-b), a, self.Delta, squeeze=False) / a
         # transform axes
         R = R[..., None]
+        #print(k.shape, R.shape, np.log10(k*R).shape) #c500.shape, gamma.shape)
         #self._fourier_interp = self._integ_interp(**kwargs)
         ff = self._integ_interp(c500, alpha, beta, gamma)(np.log10(k*R))
+        #ff = self._integ_interp2d(c500, alpha, beta, gamma, np.log10(k*R))
+        #print(ff.shape)
+        nn = self.norm(cosmo, M, a, b)[..., None]
+
+        F = 4*np.pi*R**3 * nn * ff
+        return (F.squeeze(), (F**2).squeeze()) if squeeze else (F, F**2)
+
+class Arnaud_new(object):
+    """
+    Calculate a GNFW (based on Le Brun 15) profile quantity of a halo and its Fourier transform.
+
+
+    Parameters
+    ----------
+    rrange : tuple
+        Desired physical distance to probe (expressed in units of R_Delta).
+        Change only if necessary. For distances too much outside of the
+        default range the calculation might become unstable.
+    qpoints : int
+        Number of integration sampling points.
+    """
+    def __init__(self, name='Arnaud', rrange=(1e-3, 10), qpoints=1e2):
+
+        self.rrange = rrange         # range of probed distances [R_Delta]
+        self.qpoints = int(qpoints)  # no of sampling points
+        self.Delta = 500             # reference overdensity (Arnaud et al.)
+        self.name = name
+
+        #self._fourier_interp = self._integ_interp()
+
+    def kernel(self, cosmo, a, **kwargs):
+        """The thermal Sunyaev-Zel'dovich anisotropy window function."""
+        prefac = 4.017100792437957e-06
+        # avoid recomputing every time
+        # Units of eV * Mpc / cm^3
+        return prefac*a
+
+    def profnorm(self, cosmo, a, squeeze=True, **kwargs):
+        """Computes the overall profile normalisation for the angular cross-
+        correlation calculation."""
+        return np.ones_like(a)
+
+    def norm(self, cosmo, M, a, b, squeeze=True):
+        """Computes the normalisation factor of the Arnaud profile.
+
+        .. note:: Normalisation factor is given in units of ``eV/cm^3``. \
+        (Arnaud et al., 2009)
+        """
+        # Input handling
+        M, a = np.atleast_1d(M), np.atleast_1d(a)
+
+        aP = 0.12  # Arnaud et al.
+        h70 = cosmo["h"]/0.7
+        #P0 = 6.41  # reference pressure
+        # LeBrun REF
+        #P0 = 0.528
+        #epsilon_prof = 0.271
+        # LeBrun AGN 8.0
+        #P0 = 0.581
+        #epsilon_prof = 0.819
+        # LeBrun AGN 8.5
+        P0 = 0.214
+        epsilon_prof = 0.839
+        K = 1.65*h70*P0 * (h70/3e14)**(2/3+aP)  # prefactor
+
+        PM = (M*(1-b))**(2/3+aP)*(M/1e14)**epsilon_prof             # mass dependence
+        Pz = ccl.h_over_h0(cosmo, a)**(8/3)  # scale factor (z) dependence
+
+        P = K * PM[..., None] * Pz
+        return P.squeeze() if squeeze else P
+
+    def form_factor(self, x, c500, alpha, beta, gama):
+        """Computes the form factor of the Arnaud profile."""
+        # Planck collaboration (2013a) best fit
+        #c500 = kwargs["c500"] #if "c500" in kwargs else 1.81
+        #alpha = kwargs["alpha_prof"] #if "alpha_prof" in kwargs else 1.33
+        #beta = kwargs["beta_prof"] #if "beta_prof" in kwargs else 4.13
+        #gama = kwargs["gamma_prof"] #if "gamma_prof" in kwargs else 0.31
+        f1 = (c500*x)**(-gama)
+        f2 = (1+(c500*x)**alpha)**(-(beta-gama)/alpha)
+        return f1*f2
+
+    def _integ_interp(self, c500, alpha, beta, gama):
+        """Computes the integral of the power spectrum at different points and
+        returns an interpolating function connecting these points.
+        """
+        def integrand(x, c500, alpha, beta, gama):
+            return self.form_factor(x, c500, alpha, beta, gama)*x
+
+        # # Integration Boundaries # #
+        rmin, rmax = self.rrange  # physical distance [R_Delta]
+        lgqmin, lgqmax = np.log10(1/rmax), np.log10(1/rmin)  # log10 bounds
+        q_arr = np.logspace(lgqmin, lgqmax, self.qpoints)
+        f_arr = np.array([quad(integrand,
+                               a=1e-4, b=np.inf,     # limits of integration
+                               args=(c500, alpha, beta, gama),
+                               weight="sin", wvar=q  # fourier sine weight
+                               )[0] / q for q in q_arr])
+
+        F2 = interp1d(np.log10(q_arr), np.array(f_arr), kind="cubic")
+
+        # # Extrapolation # #
+        # Backward Extrapolation
+        def F1(x, **kwargs):
+            return f_arr[0]*np.ones_like(x)  # constant value
+
+        # Forward Extrapolation
+        # linear fitting
+        Q = np.log10(q_arr[q_arr > 1e2])
+        F = np.log10(f_arr[q_arr > 1e2])
+        A = np.vstack([Q, np.ones(len(Q))]).T
+        m, c = lstsq(A, F, rcond=None)[0]
+
+        def F3(x, **kwargs):
+            return 10**(m*x+c)  # logarithmic drop
+
+        def F(x, **kwargs):
+            return np.piecewise(x,
+                                [x < lgqmin,        # backward extrapolation
+                                 (lgqmin <= x)*(x <= lgqmax),  # common range
+                                 lgqmax < x],       # forward extrapolation
+                                [F1, F2, F3])
+        return F
+
+    def _integ_interp2d(self, c500, alpha, beta, gamma, x):
+        if (np.isscalar(c500)) & (np.isscalar(gamma)):
+            return self._integ_interp(c500, alpha, beta, gamma)(x)
+        else:
+            if (c500.shape != gamma.shape) & (c500.shape != x.shape[0]):
+                return ValueError('c500 should have the same shape as gamma and x[0]')
+            else:
+                out = np.zeros((c500.shape[0], x.shape[1], x.shape[2]))
+                for i in range(len(c500)):
+                    out[i] = self._integ_interp(c500[i], alpha, beta, gamma[i])(x[i])
+                return out
+
+    def fourier_profiles(self, cosmo, k, M, a, squeeze=True, **kwargs):
+        """Computes the Fourier transform of the Arnaud profile.
+
+        .. note:: Output units are ``[norm] Mpc^3``
+        """
+        # Input handling
+        M, a, k = np.atleast_1d(M), np.atleast_1d(a), np.atleast_2d(k)
+        # hydrostatic bias
+        b = kwargs["b_hydro"]
+        c500 = kwargs["c500"] if "c500" in kwargs else 1.81
+        alpha = kwargs["alpha_prof"] if "alpha_prof" in kwargs else 1.33
+        beta = kwargs["beta_prof"] if "beta_prof" in kwargs else 4.13
+        gamma = kwargs["gamma_prof"] if "gamma_prof" in kwargs else 0.31
+        #epsilon_prof = kwargs["epsilon_prof"] if "epsilon_prof" in kwargs else 0
+        delta_prof = kwargs["delta_prof"] if "delta_prof" in kwargs else 0
+        c500 = c500*(M/1e14)**delta_prof
+        gamma = gamma*np.ones_like(c500)
+        #gamma = gamma*(M/1e14)**epsilon_prof
+        # R_Delta*(1+z)
+        R = R_Delta(cosmo, M*(1-b), a, self.Delta, squeeze=False) / a
+        # transform axes
+        R = R[..., None]
+        #print(k.shape, R.shape, np.log10(k*R).shape) #c500.shape, gamma.shape)
+        #self._fourier_interp = self._integ_interp(**kwargs)
+        #ff = self._integ_interp(c500, alpha, beta, gamma)(np.log10(k*R))
+        ff = self._integ_interp2d(c500, alpha, beta, gamma, np.log10(k*R))
+        #print(ff.shape)
         nn = self.norm(cosmo, M, a, b)[..., None]
 
         F = 4*np.pi*R**3 * nn * ff

@@ -76,18 +76,19 @@ for v in p.get('data_vectors'):
     sam = Sampler(lik.lnprob, lik.p0, lik.p_free_names,
                   p.get_sampler_prefix(v['name']),
                   p.get('mcmc'))
+    
+    if len(lik.p_free_names) > 0:
+        # Compute best fit and covariance around it
+        if not sam.read_properties():
+            print(" Computing best-fit and covariance")
+            sam.get_best_fit(update_p0=True)
+            cov0 = sam.get_covariance(update_cov=True)
+            sam.save_properties()
 
-    # Compute best fit and covariance around it
-    if not sam.read_properties():
-        print(" Computing best-fit and covariance")
-        sam.get_best_fit(update_p0=True)
-        cov0 = sam.get_covariance(update_cov=True)
-        sam.save_properties()
-
-    print(" Best-fit parameters:")
-    for n, v, s in zip(sam.parnames, sam.p0, np.sqrt(np.diag(sam.covar))):
-        print("  " + n + " : %.3lE +- %.3lE" % (v, s))
-        if n == p.get("mcmc")["save_par"]: par.append(v)
+        print(" Best-fit parameters:")
+        for n, v, s in zip(sam.parnames, sam.p0, np.sqrt(np.diag(sam.covar))):
+            print("  " + n + " : %.3lE +- %.3lE" % (v, s))
+            if n == p.get("mcmc")["save_par"]: par.append(v)
     print(" chi^2 = %lf" % (lik.chi2(sam.p0)))
     print(" n_data = %d" % (len(d.data_vector)))
 

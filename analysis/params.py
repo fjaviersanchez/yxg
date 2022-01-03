@@ -31,6 +31,12 @@ class ParamRun(object):
                              sigma8= 0.8102, #0.758,#0.8102,
                              n_s=0.9665,
                              mass_function=mfunc)
+        #return ccl.Cosmology(Omega_c= 0.21999999999999997,
+        #                     Omega_b=0.0448,
+        #                     h=0.71,
+        #                     sigma8= 0.8, #0.758,#0.8102,
+        #                     n_s=0.963,
+        #                     mass_function=mfunc)
 
     def get_outdir(self):
         """

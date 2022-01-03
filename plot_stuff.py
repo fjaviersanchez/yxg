@@ -91,8 +91,8 @@ for v in p.get('data_vectors'):
     bychain = np.array([hm_bias(cosmo, 1./(1 + zarr), d.tracers[1][1].profile,
                       **(lik.build_kwargs(p0))) for p0 in sam.chain[::100]])
 
-    bgmin, bg, bgmax = np.percentile(bgchain, [16, 50, 84])
-    bymin, by, bymax = np.percentile(bychain, [16, 50, 84])
+    bgmin, bg, bgmax = np.nanpercentile(bgchain, [16, 50, 84])
+    bymin, by, bymax = np.nanpercentile(bychain, [16, 50, 84])
 
 
     # Get effective number of degrees of freedom

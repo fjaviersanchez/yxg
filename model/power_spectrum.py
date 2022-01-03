@@ -284,3 +284,62 @@ def hm_ang_power_spectrum(cosmo, l, profiles,
 
     Cl = simps(integrand, x, axis=0)
     return Cl
+
+def hm_mean_mass(cosmo, a, profile,
+            logMrange=(6, 17), mpoints=128,
+            selection=None,
+            **kwargs):
+    """Computes the mean halo mass of a given
+    tracer.
+
+    Args:
+        cosmo (:obj:`ccl.Cosmology`): cosmology.
+        a (array): array of scale factor values
+        profile (`Profile`): a profile. Only Arnaud and HOD are
+            implemented.
+        logMrange (tuple): limits of integration in log10(M/Msun)
+        mpoints (int): number of mass samples
+        selection (function): selection function in (M,z) to include
+            in the calculation. Pass None if you don't want to select
+            a subset of the M-z plane.
+        **kwargs: parameter used internally by the profiles.
+    """
+    # Input handling
+    a = np.atleast_1d(a)
+
+    # Profile normalisations
+    Unorm = profile.profnorm(cosmo, a, squeeze=False, **kwargs)
+    Unorm = Unorm[..., None]
+
+    # Set up integration boundaries
+    logMmin, logMmax = logMrange  # log of min and max halo mass [Msun]
+    mpoints = int(mpoints)        # number of integration points
+    M = np.logspace(logMmin, logMmax, mpoints)  # masses sampled
+
+    # Out-of-loop optimisations
+    Dm = profile.Delta/ccl.omega_x(cosmo, a, "matter")  # CCL uses Delta_m
+    mfunc = np.array([ccl.massfunc(cosmo, M, A1, A2) for A1, A2 in zip(a, Dm)])
+    #bh = np.array([ccl.halo_bias(cosmo, M, A1, A2) for A1, A2 in zip(a, Dm)])
+    # shape transformations
+    mfunc = mfunc.T[..., None]
+    if selection is not None:
+        select = np.array([selection(M,1./aa-1) for aa in a])
+        select = select.T[..., None]
+    else:
+        select = 1
+
+    U, _ = profile.fourier_profiles(cosmo, np.array([0.001]), M, a,
+                                    squeeze=False, **kwargs)
+    # Tinker mass function is given in dn/dlog10M, so integrate over d(log10M)
+    b2h = simps(M[None, None, ...].T*mfunc*select*U, x=np.log10(M), axis=0).squeeze()
+    # Contribution from small masses (added in the beginning)
+    #rhoM = ccl.rho_x(cosmo, a, "matter", is_comoving=True)
+    #dlM = (logMmax-logMmin) / (mpoints-1)
+    #mfunc= mfunc.squeeze()  # squeeze extra dimensions
+
+    #n0_2h = np.array((rhoM - np.dot(M, mfunc*M[None, ...].T) * dlM)/M[0])[None, ..., None]
+
+    #b2h += (n0_2h*U[0]).squeeze()
+    b2h /= Unorm.squeeze()
+
+    return np.log10(b2h.squeeze())
